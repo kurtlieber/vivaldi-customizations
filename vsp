@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# vivaldi sync prefs - vsp
+# https://github.com/kurtlieber/vivaldi-customizations
+
+# this is the profile that will be used as the "gold image" for your other profiles.
+# it **must** match exactly the directory in which the profile is stored.
+# 99% of the time, it will either be "Default" or "Profile <num>"
+#
+# you can override this on the command line with '-M /path/to/master/profile/dir'
+master_profile="Default"
+
+# don't change this unless you've installed vivaldi's config directory in a non-standard location.
+vivaldi_config_dir="${HOME}/.config/vivaldi" 
+#vivaldi_config_dir="${HOME}/temp" 
+jq=$(which jq)
+# in case you want/need to hard-code path to jq
+# jq = "/path/to/jq"
+###############################################################################
+# you shouldn't need to change anything below this line 
+###############################################################################
+usage() {
+    file="$(basename ${0})"
+    echo "${file} will update vivaldi-specific preferences, which are not currently supported by Vivaldi sync."
+    echo "Currently supports:"
+    echo ""
+    echo "	- navigation toolbar"
+    echo "	- panels toolbar"
+    echo "	- custom web panels in the panel toolbar"
+    echo ""
+    echo "Usage: ${file} [-s] [-v] [-M <value>]"
+    echo ""
+    echo "Options:"
+    echo "  -s           Run silently, with no confirmation"
+    echo "  -M <value>   Use this vivaldi profile as the master profile (overrides \$master_profile in script)"
+    echo "  -v           Be verbose"
+    echo ""
+    echo "${file} will pull the key value for the selected Preferences from the master profile,"
+    echo "as defined by -M <path> or by \$master_profile in the script itself."
+    echo ""
+    echo "The master profile defaults to ~/.config/vivaldi/Default"
+    echo ""
+    echo "Dependencies: jq - the command-line JSON processor"
+    exit 1
+}
+
+verbose() {
+    if [ -z "$verbose" ]; then
+	echo "$1"
+    fi
+}
+
+pref_file_location="${vivaldi_config_dir%/}/${master_profile}"
+
+
+while getopts ":sM:v" opt; do
+    case "$opt" in
+        s)
+            silent=1
+            ;;
+        M)
+            pref_file_location="$(echo "${OPTARG}" | sed 's/^"\(.*\)"$/\1/')" # in case the dir path is enclosed in quotes.  might be a better way to handle this - if so, tell me
+	    pref_file_location="$(eval echo ${pref_file_location})" #in case someone uses ~/ for their home dir.  again, might be a better way.  I'm all ears
+            ;;
+	v)
+	    verbose=1
+	    ;;
+        \?)
+	    usage
+            ;;
+    esac
+done
+if [ ! -d "${pref_file_location}" ]; then
+    echo "Missing or unknown profile directory.  Please check \$master_profile in the script and try again."
+    verbose "pref_file_location = ${pref_file_location}"
+    exit 1
+
+fi
+if [ ! -x "${jq}" ]; then
+    echo "Missing jq dependency.  Please ensure it is installed and available in your \$PATH"
+    echo ""
+    usage
+fi
+
+profile_name=$(${jq} -r '.profile.name' "${pref_file_location}/Preferences")
+nav_toolbar=$(${jq} -r '.vivaldi.toolbars.navigation' "${pref_file_location}/Preferences")
+panels=$(${jq} -r '.vivaldi.panels' "${pref_file_location}/Preferences")
+panels_toolbar=$(${jq} -r '.vivaldi.toolbars.panel' "${pref_file_location}/Preferences")
+
+# currently here for debugging.  will eventually remove.
+verbose "-M set to ${pref_file_location}" 
+verbose "Profile name = ${profile_name}"
+verbose "Nav toolbar = ${nav_toolbar}"
+
+
+
+if [ -z "$silent" ]; then
+    read -rp "You're about to use the ${profile_name} profile. Is that correct? (Y/n): " confirm
+    confirm="${confirm,,}"
+    if [ "$confirm" != "y" ] && [ "$confirm" != "yes" ] && [ "$confirm" != "" ]; then
+        verbose "Operation canceled."
+        exit 1
+    fi
+fi
+
+for dir in "$vivaldi_config_dir"/Profile* "$vivaldi_config_dir/Default"; do
+    if [ "${dir}" != "${pref_file_location}" ]; then
+	if [ -f "${dir}/Preferences" ]; then
+	    pref_file="${dir}/Preferences"
+	    pref_file_bak="${dir}/Preferences.bak"
+	    verbose "Creating backup of ${pref_file} at ${pref_file_bak}"
+
+	    cp "${pref_file}" "${pref_file_bak}" #make a backup, just in case
+	    
+	    ${jq} --argjson new_nav_toolbar "${nav_toolbar}" \
+	          --argjson new_panel "${panels}" \
+		  --argjson new_panel_toolbar "${panels_toolbar}" \
+		  '.vivaldi.toolbars.navigation = $new_nav_toolbar |
+		  .vivaldi.panels = $new_panel | 
+		  .vivaldi.toolbars.panel = $new_panel_toolbar' \
+		  "${pref_file}" > /tmp/NewPreferences #jq can't edit files in place, so we have to create a temp file.
+	    
+	    verbose "Updating ${pref_file}"
+	    
+	    if [ -s "/tmp/NewPreferences" ] && [ -s "${pref_file_bak}" ]; then
+		verbose "Installing new Preferences file.  Old one can be restored from backup at ${pref_file_bak} if needed"
+		mv /tmp/NewPreferences "${pref_file}"
+	    fi
+	fi
+    fi
+done
