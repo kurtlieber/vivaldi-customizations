@@ -10,14 +10,21 @@
 master_profile="Default"
 
 # don't change this unless you've installed vivaldi's config directory in a non-standard location.
-vivaldi_config_dir="${HOME}/.config/vivaldi" 
-#vivaldi_config_dir="${HOME}/temp" 
+#vivaldi_config_dir="${HOME}/.config/vivaldi" 
+vivaldi_config_dir="${HOME}/temp" 
 jq=$(which jq)
 # in case you want/need to hard-code path to jq
 # jq = "/path/to/jq"
 ###############################################################################
 # you shouldn't need to change anything below this line 
 ###############################################################################
+
+# TODO
+# rewrite the export stuff so it takes a file path on the command line.  this will be consistent with the import stuff.
+# write the import stuff
+#
+
+
 usage() {
     file="$(basename ${0})"
     echo "${file} will update vivaldi-specific preferences, which are not currently supported by Vivaldi sync."
@@ -26,9 +33,9 @@ usage() {
     echo ""
     echo "Currently supports:"
     echo ""
-    echo "	- navigation toolbar"
-    echo "	- panels toolbar"
-    echo "	- custom web panels in the panel toolbar"
+    echo "    - navigation toolbar"
+    echo "    - panels toolbar"
+    echo "    - custom web panels in the panel toolbar"
     echo ""
     echo "Usage: ${file} [-s] [-v] [-M <value>]"
     echo ""
@@ -48,27 +55,63 @@ usage() {
 
 verbose() {
     if [ -z "$verbose" ]; then
-	echo "$1"
+    echo "$1"
     fi
 }
+jq_write() {
+    local f="$1"
+    local s="$2"
+    # it kills me that I have to write the jq query code twice, but I can't figure out how 
+    # to write the last line based on a variable
+    if [ -n "$f" ] && [ -n "$s" ] && [ -z "$file_export" ]; then
+        ${jq} \
+            --argjson new_nav_toolbar "${nav_toolbar}" \
+            --argjson new_panel "${panels}" \
+            --argjson new_panel_toolbar "${panels_toolbar}" \
+            '.vivaldi.toolbars.navigation = $new_nav_toolbar |
+            .vivaldi.panels = $new_panel | 
+            .vivaldi.toolbars.panel = $new_panel_toolbar' \
+            "${f}" > ${s} #jq can't edit files in place, so we have to create a temp file.
+     elif [ -n "$s" ] && [ -n "$file_export" ]; then
+         ${jq} ${file_export} \
+            --argjson new_nav_toolbar "${nav_toolbar}" \
+            --argjson new_panel "${panels}" \
+            --argjson new_panel_toolbar "${panels_toolbar}" \
+            '.vivaldi.toolbars.navigation = $new_nav_toolbar |
+            .vivaldi.panels = $new_panel | 
+            .vivaldi.toolbars.panel = $new_panel_toolbar' \
+            > ${s} 
+    else 
+        echo "something bad happened in the jq_write function"
+        verbose "\$f = ${f}" # debugging
+        verbose "\$s = ${s}" # debugging
+    fi
+} 
 
 pref_file_location="${vivaldi_config_dir%/}/${master_profile}"
+file_export=""
+file_import=""
 
-
-while getopts ":sM:v" opt; do
+while getopts ":sM:vei" opt; do
     case "$opt" in
         s)
             silent=1
             ;;
         M)
             pref_file_location="$(echo "${OPTARG}" | sed 's/^"\(.*\)"$/\1/')" # in case the dir path is enclosed in quotes.  might be a better way to handle this - if so, tell me
-	        pref_file_location="$(eval echo ${pref_file_location})" #in case someone uses ~/ for their home dir.  again, might be a better way.  I'm all ears
+            pref_file_location="$(eval echo ${pref_file_location})" #in case someone uses ~/ for their home dir.  again, might be a better way.  I'm all ears
             ;;
-    	v)
-	        verbose=1
-	        ;;
+        v)
+            verbose=1
+            ;;
+        e)
+            file_export="-n"
+            ;;
+        i)
+            file_import=1
+            ;;
         \?)
-	        usage
+            usage
             ;;
     esac
 done
@@ -105,29 +148,50 @@ if [ -z "$silent" ]; then
     fi
 fi
 
-for dir in "$vivaldi_config_dir"/Profile* "$vivaldi_config_dir/Default"; do
-    if [ "${dir}" != "${pref_file_location}" ]; then
-    	if [ -f "${dir}/Preferences" ]; then
-	        pref_file="${dir}/Preferences"
-	        pref_file_bak="${dir}/Preferences.bak"
-	        verbose "Creating backup of ${pref_file} at ${pref_file_bak}"
+if [ -n "$file_export" ]; then
+    read -e -p "Enter a file path to save the preferences (default: ~/vivaldi_prefs_export.json): " save_file
+    pref_file=""
+    save_file="${save_file:-$HOME/vivaldi_prefs_export.json}"
 
-	        cp "${pref_file}" "${pref_file_bak}" #make a backup, just in case
-	    
-    	    ${jq} --argjson new_nav_toolbar "${nav_toolbar}" \
-    	          --argjson new_panel "${panels}" \
-    		      --argjson new_panel_toolbar "${panels_toolbar}" \
-    		      '.vivaldi.toolbars.navigation = $new_nav_toolbar |
-    		      .vivaldi.panels = $new_panel | 
-    		      .vivaldi.toolbars.panel = $new_panel_toolbar' \
-    		      "${pref_file}" > /tmp/NewPreferences #jq can't edit files in place, so we have to create a temp file.
-    	    
-    	    verbose "Updating ${pref_file}"
-    	    
-    	    if [ -s "/tmp/NewPreferences" ] && [ -s "${pref_file_bak}" ]; then
-        		verbose "Installing new Preferences file.  Old one can be restored from backup at ${pref_file_bak} if needed"
-        		mv /tmp/NewPreferences "${pref_file}"
-	        fi
-	    fi
+    if [ ! -d "$(dirname "$save_file")" ]; then
+        echo "Error: The directory $(dirname "$save_file") does not exist."
+        exit 1
     fi
-done
+
+    if [ -e "$save_file" ]; then
+        read -p "The file already exists. Do you want to overwrite it? (y/n): " overwrite
+        if [ "$overwrite" != "y" ]; then
+            echo "File not saved."
+            exit 0
+        fi
+    fi
+    
+    if [ ! -w "$(dirname "$save_file")" ]; then
+        echo "Error: You do not have write permissions to the directory $(dirname "$save_file")."
+        echo "save the file somewhere else and for the love of god do not use sudo to re-run the script"
+        exit 1
+    fi
+    jq_write "${pref_file}" "${save_file}"
+else
+    for dir in "$vivaldi_config_dir"/Profile* "$vivaldi_config_dir/Default"; do
+        if [ "${dir}" != "${pref_file_location}" ]; then
+            if [ -f "${dir}/Preferences" ]; then
+                pref_file="${dir}/Preferences"
+                pref_file_bak="${dir}/Preferences.bak"
+                save_file="/tmp/NewPreferences"
+                verbose "Creating backup of ${pref_file} at ${pref_file_bak}"
+
+                cp "${pref_file}" "${pref_file_bak}" #make a backup, just in case
+
+                jq_write "${pref_file}" "${save_file}"
+                
+                verbose "Updating ${pref_file}"
+                
+                if [ -s "${save_file}" ] && [ -s "${pref_file_bak}" ]; then
+                    verbose "Installing new Preferences file.  Old one can be restored from backup at ${pref_file_bak} if needed"
+                    mv "${save_file}" "${pref_file}"
+                fi
+            fi
+        fi
+    done
+fi
