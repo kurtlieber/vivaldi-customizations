@@ -7,6 +7,7 @@
 
 # Default directory path (current working directory)
 directory="./"
+viv_prefs="${HOME}/.config/vivaldi/Default/Preferences"
 
 total_dirs=10
 
@@ -17,7 +18,6 @@ fi
 mkdir -p $directory/Default
 mkdir -p $directory/Profile\ {1..$total_dirs}
 find $directory -name "Preferences*" -exec rm {} \;
-touch $directory/Default/Preferences
-touch $directory/Profile\ {1..$total_dirs}/Preferences
+find $directory -type d -exec cp "${viv_prefs}" {} \;
 echo "cleaned"
 
