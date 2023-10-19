@@ -116,11 +116,11 @@ for dir in "$vivaldi_config_dir"/Profile* "$vivaldi_config_dir/Default"; do
 	    
     	    ${jq} --argjson new_nav_toolbar "${nav_toolbar}" \
     	          --argjson new_panel "${panels}" \
-    		  --argjson new_panel_toolbar "${panels_toolbar}" \
-    		  '.vivaldi.toolbars.navigation = $new_nav_toolbar |
-    		  .vivaldi.panels = $new_panel | 
-    		  .vivaldi.toolbars.panel = $new_panel_toolbar' \
-    		  "${pref_file}" > /tmp/NewPreferences #jq can't edit files in place, so we have to create a temp file.
+    		      --argjson new_panel_toolbar "${panels_toolbar}" \
+    		      '.vivaldi.toolbars.navigation = $new_nav_toolbar |
+    		      .vivaldi.panels = $new_panel | 
+    		      .vivaldi.toolbars.panel = $new_panel_toolbar' \
+    		      "${pref_file}" > /tmp/NewPreferences #jq can't edit files in place, so we have to create a temp file.
     	    
     	    verbose "Updating ${pref_file}"
     	    
