@@ -65,7 +65,7 @@ while getopts ":sM:v" opt; do
 	        pref_file_location="$(eval echo ${pref_file_location})" #in case someone uses ~/ for their home dir.  again, might be a better way.  I'm all ears
             ;;
     	v)
-	        qverbose=1
+	        verbose=1
 	        ;;
         \?)
 	        usage
