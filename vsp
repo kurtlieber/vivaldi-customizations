@@ -62,13 +62,13 @@ while getopts ":sM:v" opt; do
             ;;
         M)
             pref_file_location="$(echo "${OPTARG}" | sed 's/^"\(.*\)"$/\1/')" # in case the dir path is enclosed in quotes.  might be a better way to handle this - if so, tell me
-	    pref_file_location="$(eval echo ${pref_file_location})" #in case someone uses ~/ for their home dir.  again, might be a better way.  I'm all ears
+	        pref_file_location="$(eval echo ${pref_file_location})" #in case someone uses ~/ for their home dir.  again, might be a better way.  I'm all ears
             ;;
-	v)
-	    verbose=1
-	    ;;
+    	v)
+	        qverbose=1
+	        ;;
         \?)
-	    usage
+	        usage
             ;;
     esac
 done
@@ -107,27 +107,27 @@ fi
 
 for dir in "$vivaldi_config_dir"/Profile* "$vivaldi_config_dir/Default"; do
     if [ "${dir}" != "${pref_file_location}" ]; then
-	if [ -f "${dir}/Preferences" ]; then
-	    pref_file="${dir}/Preferences"
-	    pref_file_bak="${dir}/Preferences.bak"
-	    verbose "Creating backup of ${pref_file} at ${pref_file_bak}"
+    	if [ -f "${dir}/Preferences" ]; then
+	        pref_file="${dir}/Preferences"
+	        pref_file_bak="${dir}/Preferences.bak"
+	        verbose "Creating backup of ${pref_file} at ${pref_file_bak}"
 
-	    cp "${pref_file}" "${pref_file_bak}" #make a backup, just in case
+	        cp "${pref_file}" "${pref_file_bak}" #make a backup, just in case
 	    
-	    ${jq} --argjson new_nav_toolbar "${nav_toolbar}" \
-	          --argjson new_panel "${panels}" \
-		  --argjson new_panel_toolbar "${panels_toolbar}" \
-		  '.vivaldi.toolbars.navigation = $new_nav_toolbar |
-		  .vivaldi.panels = $new_panel | 
-		  .vivaldi.toolbars.panel = $new_panel_toolbar' \
-		  "${pref_file}" > /tmp/NewPreferences #jq can't edit files in place, so we have to create a temp file.
-	    
-	    verbose "Updating ${pref_file}"
-	    
-	    if [ -s "/tmp/NewPreferences" ] && [ -s "${pref_file_bak}" ]; then
-		verbose "Installing new Preferences file.  Old one can be restored from backup at ${pref_file_bak} if needed"
-		mv /tmp/NewPreferences "${pref_file}"
+    	    ${jq} --argjson new_nav_toolbar "${nav_toolbar}" \
+    	          --argjson new_panel "${panels}" \
+    		  --argjson new_panel_toolbar "${panels_toolbar}" \
+    		  '.vivaldi.toolbars.navigation = $new_nav_toolbar |
+    		  .vivaldi.panels = $new_panel | 
+    		  .vivaldi.toolbars.panel = $new_panel_toolbar' \
+    		  "${pref_file}" > /tmp/NewPreferences #jq can't edit files in place, so we have to create a temp file.
+    	    
+    	    verbose "Updating ${pref_file}"
+    	    
+    	    if [ -s "/tmp/NewPreferences" ] && [ -s "${pref_file_bak}" ]; then
+        		verbose "Installing new Preferences file.  Old one can be restored from backup at ${pref_file_bak} if needed"
+        		mv /tmp/NewPreferences "${pref_file}"
+	        fi
 	    fi
-	fi
     fi
 done
