@@ -63,7 +63,7 @@ jq_write() {
     local s="$2"
     # it kills me that I have to write the jq query code twice, but I can't figure out how 
     # to write the last line based on a variable
-    if [ -n "$f" ] && [ -n "$s" ] && [ -z "$file_export" ]; then
+    if [ -n "$f" ] && [ -n "$s" ] && [ -z "$export_file_location" ]; then
         ${jq} \
             --argjson new_nav_toolbar "${nav_toolbar}" \
             --argjson new_panel "${panels}" \
@@ -72,8 +72,8 @@ jq_write() {
             .vivaldi.panels = $new_panel | 
             .vivaldi.toolbars.panel = $new_panel_toolbar' \
             "${f}" > ${s} #jq can't edit files in place, so we have to create a temp file.
-     elif [ -n "$s" ] && [ -n "$file_export" ]; then
-         ${jq} ${file_export} \
+     elif [ -n "$s" ] && [ -n "$export_file_location" ]; then
+         ${jq} ${export_file_location} \
             --argjson new_nav_toolbar "${nav_toolbar}" \
             --argjson new_panel "${panels}" \
             --argjson new_panel_toolbar "${panels_toolbar}" \
@@ -89,7 +89,7 @@ jq_write() {
 } 
 
 pref_file_location="${vivaldi_config_dir%/}/${master_profile}"
-file_export=""
+export_file_location=""
 file_import=""
 
 while getopts ":sM:vei" opt; do
@@ -105,7 +105,8 @@ while getopts ":sM:vei" opt; do
             verbose=1
             ;;
         e)
-            file_export="-n"
+            export_file_location="$(echo "${OPTARG}" | sed 's/^"\(.*\)"$/\1/')" # in case the dir path is enclosed in quotes.  might be a better way to handle this - if so, tell me
+            export_file_location="$(eval echo ${pref_file_location})" #in case someone uses ~/ for their home dir.  again, might be a better way.  I'm all ears
             ;;
         i)
             file_import=1
@@ -148,30 +149,29 @@ if [ -z "$silent" ]; then
     fi
 fi
 
-if [ -n "$file_export" ]; then
-    read -e -p "Enter a file path to save the preferences (default: ~/vivaldi_prefs_export.json): " save_file
+if [ -n "$export_file_location" ]; then
     pref_file=""
-    save_file="${save_file:-$HOME/vivaldi_prefs_export.json}"
 
-    if [ ! -d "$(dirname "$save_file")" ]; then
-        echo "Error: The directory $(dirname "$save_file") does not exist."
+    if [ ! -d "$(dirname "$export_file_location")" ]; then
+        echo "Error: The directory $(dirname "$export_file_location") does not exist."
         exit 1
     fi
 
-    if [ -e "$save_file" ]; then
-        read -p "The file already exists. Do you want to overwrite it? (y/n): " overwrite
-        if [ "$overwrite" != "y" ]; then
-            echo "File not saved."
+    if [ -e "$export_file_location" ]; then
+        read -rp "The file already exists. Do you want to overwrite it? (Y/n): " overwrite
+        overwrite="${overwrite,,}"
+        if [ "$overwrite" != "y" ] && [ "$overwrite" != "yes" ] && [ "$overwrite" != "" ]; then
+            verbose "File not saved."
             exit 0
         fi
     fi
     
-    if [ ! -w "$(dirname "$save_file")" ]; then
-        echo "Error: You do not have write permissions to the directory $(dirname "$save_file")."
+    if [ ! -w "$(dirname "$export_file_location")" ]; then
+        echo "Error: You do not have write permissions to the directory $(dirname "$export_file_location")."
         echo "save the file somewhere else and for the love of god do not use sudo to re-run the script"
         exit 1
     fi
-    jq_write "${pref_file}" "${save_file}"
+    jq_write "${pref_file}" "${export_file_location}"
 else
     for dir in "$vivaldi_config_dir"/Profile* "$vivaldi_config_dir/Default"; do
         if [ "${dir}" != "${pref_file_location}" ]; then
