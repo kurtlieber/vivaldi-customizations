@@ -17,17 +17,21 @@ vsp will update vivaldi-specific preferences, which are not currently supported 
 
 Currently supports:
 
-	- navigation toolbar
-	- panels toolbar
-	- custom web panels in the panel toolbar
+* navigation toolbar
+* panels toolbar
+* custom web panels in the panel toolbar
 
+```
 Usage: vsp [-s] [-v] [-M <value>]
 
 Options:
-  -s           Run silently, with no confirmation
-  -M <value>   Use this vivaldi profile as the master profile (overrides $master_profile in script)
-  -v           Be verbose
 
+  -s           Run silently, with no confirmation
+  
+  -M <value>   Use this vivaldi profile as the master profile (overrides $master_profile in script)
+  
+  -v           Be verbose
+```
 vsp will pull the key value for the selected Preferences from the master profile,
 as defined by -M <path> or by $master_profile in the script itself.
 
