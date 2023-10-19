@@ -37,7 +37,7 @@ as defined by -M <path> or by $master_profile in the script itself.
 
 The master profile defaults to ~/.config/vivaldi/Default
 
-Dependencies: jq - the command-line JSON processor
+Dependencies: [jq](https://jqlang.github.io/jq/) - the command-line JSON processor
 
 # TODO
 * Currently, this only works using a master profile.  Thus, it won't work to port preferences to a different machine.  I will be adding this functionality.
