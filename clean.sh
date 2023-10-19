@@ -16,7 +16,7 @@ fi
 
 mkdir -p $directory/Default
 mkdir -p $directory/Profile\ {1..$total_dirs}
-find $directory -name Preferences -exec rm {} \;
+find $directory -name "Preferences*" -exec rm {} \;
 touch $directory/Default/Preferences
 touch $directory/Profile\ {1..$total_dirs}/Preferences
 echo "cleaned"
