@@ -130,6 +130,16 @@ if [ ! -x "${jq}" ]; then
     echo ""
     usage
 fi
+if pgrep -f "vivaldi" > /dev/null; then
+    echo "Detected vivaldi running.  If you're only running your master profile, this is fine."
+    echo "However, if you're running any of the profiles you're seeking to modify, Vivaldi will"
+    echo "overwrite those changes.  Please exit out of those profiles and run the script again."
+    read -rp "Would you like to continue?(Y/n): " confirm
+    confirm="${confirm,,}"
+    if [ "$confirm" != "y" ] && [ "$confirm" != "yes" ] && [ "$confirm" != "" ]; then
+        error "Operation canceled." 1
+    fi
+fi
 if [ -n "${import_file_location}" ]; then 
     
     if [ ! -f "${import_file_location}" ]; then
