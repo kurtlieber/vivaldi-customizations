@@ -3,7 +3,7 @@
 # Use Case
 I use a _lot_ of profiles, largely to keep my multiple work environments separate from one another.  I also have a 2-3 different machines that I typically work from.  
 
-Vivaldi Sync does not support certain key preferences, which means each time I create a new profile, I have to adjust the toolbars, web panels, etc. to my preferences.
+Vivaldi Sync does not support synchronizing certain key preferences, which means each time I create a new profile, I have to adjust the toolbars, web panels, etc. to my preferences.
 Then, I have to do it again on each of the different machines I use.  I find this extremely annoying, thus VSP was born.
 
 VSP assumes you have configured one profile "perfectly" and want to make all other profiles look like that one.  This defaults to your Default profile, but you can 
