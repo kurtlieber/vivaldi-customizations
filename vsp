@@ -21,6 +21,9 @@ jq=$(which jq)
 usage() {
     file="$(basename ${0})"
     echo "${file} will update vivaldi-specific preferences, which are not currently supported by Vivaldi sync."
+    echo ""
+    echo "***close out of vivaldi before running this script or it may (will) overwrite your changes***"
+    echo ""
     echo "Currently supports:"
     echo ""
     echo "	- navigation toolbar"
