@@ -19,12 +19,6 @@ jq=$(which jq)
 # you shouldn't need to change anything below this line 
 ###############################################################################
 
-# TODO
-# rewrite the export stuff so it takes a file path on the command line.  this will be consistent with the import stuff.
-# write the import stuff
-#
-
-
 usage() {
     file="$(basename ${0})"
     echo "${file} will update vivaldi-specific preferences, which are not currently supported by Vivaldi sync."
@@ -88,9 +82,15 @@ jq_write() {
     fi
 } 
 
+error() {
+    local m="$1"
+    local c="$2"
+    echo "Error: ${1}"
+    exit $2
+}
+
 pref_file_location="${vivaldi_config_dir%/}/${master_profile}"
 export_file_location=""
-file_import=""
 
 while getopts ":sM:vei" opt; do
     case "$opt" in
@@ -105,33 +105,51 @@ while getopts ":sM:vei" opt; do
             verbose=1
             ;;
         e)
-            export_file_location="$(echo "${OPTARG}" | sed 's/^"\(.*\)"$/\1/')" # in case the dir path is enclosed in quotes.  might be a better way to handle this - if so, tell me
-            export_file_location="$(eval echo ${pref_file_location})" #in case someone uses ~/ for their home dir.  again, might be a better way.  I'm all ears
+            if [ -z "${OPTARG}" ]; then
+		error "Missing argument to -e. path expected"  1
+	    else
+		export_file_location="$(echo "${OPTARG}" | sed 's/^"\(.*\)"$/\1/')"
+		export_file_location="$(eval echo ${export_file_location})"
+	    fi
             ;;
         i)
-            file_import=1
+            if [ -z "${OPTARG}" ]; then
+		error "Missing argument to -i. path expected"  1
+	    else
+		import_file_location="$(echo "${OPTARG}" | sed 's/^"\(.*\)"$/\1/')"
+		import_file_location="$(eval echo ${import_file_location})"
+	    fi
             ;;
         \?)
             usage
             ;;
     esac
 done
-if [ ! -d "${pref_file_location}" ]; then
-    echo "Missing or unknown profile directory.  Please check \$master_profile in the script and try again."
-    verbose "pref_file_location = ${pref_file_location}"
-    exit 1
-
-fi
 if [ ! -x "${jq}" ]; then
     echo "Missing jq dependency.  Please ensure it is installed and available in your \$PATH"
     echo ""
     usage
 fi
-
-profile_name=$(${jq} -r '.profile.name' "${pref_file_location}/Preferences")
-nav_toolbar=$(${jq} -r '.vivaldi.toolbars.navigation' "${pref_file_location}/Preferences")
-panels=$(${jq} -r '.vivaldi.panels' "${pref_file_location}/Preferences")
-panels_toolbar=$(${jq} -r '.vivaldi.toolbars.panel' "${pref_file_location}/Preferences")
+if [ -n "${import_file_location}" ]; then 
+    
+    if [ ! -f "${import_file_location}" ]; then
+        error "${import_file_location} is either missing or you do not have access."  1
+    else
+	master_file="${import_file_location}"
+else
+    if [ ! -d "${pref_file_location}" ]; then
+	error "Missing or unknown profile directory.  Please check \$master_profile in the script and try again." 1
+    fi
+    if [ ! -f "${pref_file_location}/Preferences" ]; then
+	error "Missing Preferences file in ${pref_file_location}." 1
+    else
+	master_file="${pref_file_location}/Preferences"
+    fi
+fi
+profile_name=$(${jq} -r '.profile.name' "${master_file}")
+nav_toolbar=$(${jq} -r '.vivaldi.toolbars.navigation' "${master_file}")
+panels=$(${jq} -r '.vivaldi.panels' "${master_file}")
+panels_toolbar=$(${jq} -r '.vivaldi.toolbars.panel' "${master_file}")
 
 # currently here for debugging.  will eventually remove.
 verbose "-M set to ${pref_file_location}" 
