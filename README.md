@@ -22,7 +22,7 @@ Currently supports:
 * custom web panels in the panel toolbar
 
 ```
-Usage: vsp [-s] [-v] [-M <value>]
+Usage: vsp [-s] [-v] [-M <value>] [-e /path/to/save/preferences.json] [-i /path/to/import/preferences.json] [-d]
 
 Options:
 
@@ -31,6 +31,12 @@ Options:
   -M <value>   Use this vivaldi profile as the master profile (overrides $master_profile in script)
   
   -v           Be verbose
+
+  -e           Export Preferences from either $master_profile or -M <value> and save that to a file locally.  
+
+  -i           Import Preferences from a local file
+
+  -d           turns on debugging (must be using development branch code for this to work)
 ```
 vsp will pull the key value for the selected Preferences from the master profile,
 as defined by -M <path> or by $master_profile in the script itself.
